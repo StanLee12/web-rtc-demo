@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Space, Input, Card, Typography, } from 'antd';
 import './App.css';
 
@@ -10,18 +10,21 @@ let text;
 
 function App() {
 
+  useEffect(() => {
+    createConnection();
+  }, []);
+
   const createConnection = () => {
+    console.log('Create connection');
     peer = new RTCPeerConnection();
     peer.onicecandidate = (e) => {
       const SDP = JSON.stringify(peer.localDescription);
       console.log('New Ice Candidate!!!', JSON.stringify(peer.localDescription));
-      console.log('PEER====', peer);
       setContent(SDP);
     }
     peer.ondatachannel = (e) => {
       rdc = e.channel;
       rdc.onmessage = (e) => {
-        console.log('RDC New message', e.data);
         const _message = message + "\n" + e.data;
         setMessage(_message);
       }
@@ -43,7 +46,6 @@ function App() {
   const createOffer = () => {
     peer.createOffer().then((o) => { peer.setLocalDescription(o).then(() => {
       console.log('created offer!!!');
-      console.log('peer=====', peer);
     })});
   }
 
@@ -55,11 +57,6 @@ function App() {
     if (!sdp) {
       return;
     }
-    if (!peer) {
-      console.log('peer ====', peer);
-      return;
-    }
-    console.log('sdp=====', sdp);
     peer.setRemoteDescription(JSON.parse(sdp)).then(() => console.log('set remote successfully!!!'));
   }
 
@@ -84,7 +81,7 @@ function App() {
         <Space
           align="center"
           direction="vertical"
-          size="large"
+          size="small"
         >
           <Space
             align="center"
@@ -94,7 +91,9 @@ function App() {
               title="SDP"
             >
               <Typography.Paragraph
+                ellipsis
                 copyable
+                style={{ width: '200px', }}
                 type="success"
               >
                 {content}
@@ -104,17 +103,12 @@ function App() {
               title="DATA-CHANNEL"
             >
               <Typography.Paragraph
-                copyable
                 type="success"
               >
                 {message}
               </Typography.Paragraph>
             </Card>
           </Space>
-          <Button
-            type="primary"
-            onClick={createConnection}
-          >Create Connection</Button>
           <Button
             type="primary"
             onClick={createChannel}
