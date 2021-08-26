@@ -60,6 +60,7 @@ function App() {
   }
 
   const addTrack = () => {
+    connection || createConnection();
     if (stream) {
       for (const track of stream.getTracks()) {
         console.log('add track!');
@@ -69,6 +70,7 @@ function App() {
   }
 
   const createChannel = () => {
+    connection || createConnection();
     console.log('Create data channel');
     dc = connection.createDataChannel('channel');
     dc.onmessage = (e) => {
@@ -81,6 +83,7 @@ function App() {
   }
 
   const createOffer = () => {
+      connection || createConnection();
       connection.createOffer({
         offerToReceiveAudio: 0,
         offerToReceiveVideo: 1
@@ -90,6 +93,7 @@ function App() {
     }
 
   const createAnswer = async () => {
+    connection || createConnection();
     connection.createAnswer().then((a) => { return connection.setLocalDescription(a).then(() => {
       console.log('created answer!!')
     }) });
@@ -121,6 +125,11 @@ function App() {
 
   const setText = (e) => {
     text = e.target.value;
+  }
+
+  const onClose = () => {
+    connection?.close();
+    connection = null;
   }
 
   if (error) {
@@ -229,6 +238,7 @@ function App() {
             ></Input>
             <Button type="primary" onClick={onSend}>Send</Button>
           </Space>
+          <Button type="primary" danger onClick={onClose}>Close</Button>
         </Space>
       </header>
     </div>
