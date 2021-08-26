@@ -10,7 +10,8 @@ let rdc;
 let text;
 
 function App() {
-  const video = useRef(null);
+  const localVideo = useRef(null);
+  const remoteVideo = useRef(null);
 
   const { stream, error } = useUserMedia();
 
@@ -20,7 +21,8 @@ function App() {
 
   useEffect(() => {
     if (stream) {
-      video.current.srcObject = stream;
+      localVideo.current.srcObject = stream;
+      remoteVideo.current.srcObject = stream;
     }
   }, [stream]);
 
@@ -113,12 +115,23 @@ function App() {
                 {content}
               </Typography.Paragraph>
             </Card>
-            <video
-              width={200}
-              height={200}
-              autoPlay
-              ref={video}
-            />
+            <Space
+              align="center"
+              direction="horizontal"
+            >
+              <video
+                width={200}
+                height={200}
+                autoPlay
+                ref={localVideo}
+              />
+              <video
+                width={200}
+                height={200}
+                autoPlay
+                ref={remoteVideo}
+              />
+            </Space>
           </Space>
           <Button
             type="primary"
