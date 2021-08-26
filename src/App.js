@@ -8,11 +8,14 @@ let sdp;
 let dc;
 let rdc;
 let text;
+let candidate;
 
 function App() {
   const localVideo = useRef(null);
   const remoteVideo = useRef(null);
-
+  const [ sdpContent, setContent ] = useState('');
+  const [ candidateContent, setCandidateContent ] = useState('');
+  const [ message, setMessage ] = useState('');
   const { stream, error } = useUserMedia();
 
   useEffect(() => {
@@ -22,7 +25,6 @@ function App() {
   useEffect(() => {
     if (stream) {
       localVideo.current.srcObject = stream;
-      remoteVideo.current.srcObject = stream;
     }
   }, [stream]);
 
@@ -30,39 +32,63 @@ function App() {
     console.log('Create connection');
     connection = new RTCPeerConnection();
     connection.onicecandidate = (e) => {
-      const SDP = JSON.stringify(connection.localDescription);
-      console.log('New Ice Candidate!!!', JSON.stringify(connection.localDescription));
-      setContent(SDP);
+      const _candidate = e.candidate;
+      console.log('New Ice Candidate!!!', JSON.stringify(e));
+      setCandidateContent(JSON.stringify(_candidate));
+      setContent(JSON.stringify(connection.localDescription));
     }
     connection.ondatachannel = (e) => {
       rdc = e.channel;
       rdc.onmessage = (e) => {
-        const _message = message + "\n" + e.data;
+        const { data } = e;
+        console.log('RDC received message', data);
+        const _message = message + "\n" + data;
         setMessage(_message);
       }
       rdc.onopen = (e) => { console.log('RDC opened!!!') }
     };
+    connection.oniceconnectionstatechange = (e) => {
+      console.log('ICE connection state change', JSON.stringify(e), connection.iceConnectionState);
+    }
+    connection.ontrack = (e) => {
+      console.log('接收到stream!!!');
+      remoteVideo.current.srcObject = e.streams[0];
+    }
   }
 
-  const [ message, setMessage ] = useState('');
+  const addTrack = () => {
+    if (stream) {
+      for (const track of stream.getTracks()) {
+        console.log('add track!');
+        connection.addTrack(track, stream);
+      }
+    }
+  }
 
   const createChannel = () => {
     dc = connection.createDataChannel('channel');
     dc.onmessage = (e) => {
-      const _message = message + "\n" + e.data;
+      const { data } = e;
+      console.log('DC received message', data);
+      const _message = message + "\n" + data;
       setMessage(_message);
     };
     dc.onopen = (e) => console.log('Connection opened!!!');
   }
 
   const createOffer = () => {
-    connection.createOffer().then((o) => { connection.setLocalDescription(o).then(() => {
-      console.log('created offer!!!');
-    })});
-  }
+    connection.createOffer({
+      offerToReceiveAudio: 0,
+      offerToReceiveVideo: 1
+    }).then((o) => { connection.setLocalDescription(o).then(() => {
+        console.log('created offer!!!');
+      })});
+    }
 
   const createAnswer = () => {
-    connection.createAnswer().then((a) => { connection.setLocalDescription(a).then(() => console.log('created answer!!')) });
+    connection.createAnswer().then((a) => { connection.setLocalDescription(a).then(() => {
+      console.log('created answer!!')
+    }) });
   }
 
   const setRemoteDescription = () => {
@@ -72,14 +98,24 @@ function App() {
     connection.setRemoteDescription(JSON.parse(sdp)).then(() => console.log('set remote successfully!!!'));
   }
 
-  const [ content, setContent ] = useState(null);
+  const addCandidate = () => {
+    connection.addIceCandidate(candidate || {}).then(() => console.log('add candidate successfully!!!'));
+  }
+
+  const onInputCandidateChange = (e) => {
+    candidate = e.target.value;
+  }
 
   const onSend = () => {
+    if (stream) {
+      dc?.send(stream);
+      rdc?.send(stream);
+    }
     dc?.send(text);
     rdc?.send(text);
   }
 
-  const setSDP = (e) => {
+  const onInputSDPChange = (e) => {
     sdp = e.target.value;
   }
 
@@ -103,18 +139,35 @@ function App() {
             align="center"
             direction="vertical"
           >
-            <Card
-              title="SDP"
+            <Space
+              align="center"
+              direction="horizontal"
             >
-              <Typography.Paragraph
-                ellipsis
-                copyable
-                style={{ width: '200px', }}
-                type="success"
+              <Card
+                title="SDP"
               >
-                {content}
-              </Typography.Paragraph>
-            </Card>
+                <Typography.Paragraph
+                  ellipsis
+                  copyable
+                  style={{ width: '200px', }}
+                  type="success"
+                >
+                  {sdpContent}
+                </Typography.Paragraph>
+              </Card>
+              <Card
+                title="CANDIDATE"
+              >
+                <Typography.Paragraph
+                  ellipsis
+                  copyable
+                  style={{ width: '200px', }}
+                  type="success"
+                >
+                  {candidateContent}
+                </Typography.Paragraph>
+              </Card>
+            </Space>
             <Space
               align="center"
               direction="horizontal"
@@ -151,9 +204,19 @@ function App() {
             size="middle"
           >
             <Input.TextArea
-              onChange={setSDP}
+              onChange={onInputSDPChange}
             ></Input.TextArea>
-            <Button type="primary" onClick={setRemoteDescription}>Set RemoteDescription</Button>
+            <Button type="primary" onClick={setRemoteDescription}>Set SDP</Button>
+          </Space>
+          <Space
+            align="center"
+            direction="horizontal"
+            size="middle"
+          >
+            <Input.TextArea
+              onChange={onInputCandidateChange}
+            ></Input.TextArea>
+            <Button type="primary" onClick={addCandidate}>Set CANDIDATE</Button>
           </Space>
           <Space
             align="center"
@@ -163,8 +226,9 @@ function App() {
             <Input
               onChange={setText}
             ></Input>
-            <Button type="primary" onClick={onSend} >Send</Button>
+            <Button type="primary" onClick={onSend}>Send</Button>
           </Space>
+          <Button type="primary" onClick={addTrack}>Start Stream</Button>
         </Space>
       </header>
     </div>
