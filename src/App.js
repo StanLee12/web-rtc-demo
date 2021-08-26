@@ -30,7 +30,7 @@ function App() {
 
   const createConnection = () => {
     console.log('Create connection');
-    connection = new RTCPeerConnection();
+    connection = new RTCPeerConnection({});
     connection.onicecandidate = (e) => {
       const _candidate = e.candidate;
       console.log('New Ice Candidate!!!', JSON.stringify(e));
@@ -51,8 +51,11 @@ function App() {
       console.log('ICE connection state change', JSON.stringify(e), connection.iceConnectionState);
     }
     connection.ontrack = (e) => {
-      console.log('接收到stream!!!');
+      console.log('on track!!!');
       remoteVideo.current.srcObject = e.streams[0];
+    }
+    connection.onicecandidateerror = (e) => {
+      console.log("onicecandidateerror ==== ", JSON.stringify(e));
     }
   }
 
@@ -66,6 +69,7 @@ function App() {
   }
 
   const createChannel = () => {
+    console.log('Create data channel');
     dc = connection.createDataChannel('channel');
     dc.onmessage = (e) => {
       const { data } = e;
@@ -77,16 +81,16 @@ function App() {
   }
 
   const createOffer = () => {
-    connection.createOffer({
-      offerToReceiveAudio: 0,
-      offerToReceiveVideo: 1
-    }).then((o) => { connection.setLocalDescription(o).then(() => {
-        console.log('created offer!!!');
+      connection.createOffer({
+        offerToReceiveAudio: 0,
+        offerToReceiveVideo: 1
+      }).then((o) => { return connection.setLocalDescription(o).then(() => {
+          console.log('created offer!!!');
       })});
     }
 
-  const createAnswer = () => {
-    connection.createAnswer().then((a) => { connection.setLocalDescription(a).then(() => {
+  const createAnswer = async () => {
+    connection.createAnswer().then((a) => { return connection.setLocalDescription(a).then(() => {
       console.log('created answer!!')
     }) });
   }
@@ -107,10 +111,6 @@ function App() {
   }
 
   const onSend = () => {
-    if (stream) {
-      dc?.send(stream);
-      rdc?.send(stream);
-    }
     dc?.send(text);
     rdc?.send(text);
   }
@@ -186,6 +186,7 @@ function App() {
               />
             </Space>
           </Space>
+          <Button type="primary" onClick={addTrack}>Add Stream</Button>
           <Button
             type="primary"
             onClick={createChannel}
@@ -228,7 +229,6 @@ function App() {
             ></Input>
             <Button type="primary" onClick={onSend}>Send</Button>
           </Space>
-          <Button type="primary" onClick={addTrack}>Start Stream</Button>
         </Space>
       </header>
     </div>
