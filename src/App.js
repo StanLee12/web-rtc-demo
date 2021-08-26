@@ -1,28 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button, Space, Input, Card, Typography, } from 'antd';
 import './App.css';
+import useUserMedia from './useUserMedia';
 
-let peer;
+let connection;
 let sdp;
 let dc;
 let rdc;
 let text;
 
 function App() {
+  const video = useRef(null);
+
+  const { stream, error } = useUserMedia();
 
   useEffect(() => {
     createConnection();
   }, []);
 
+  useEffect(() => {
+    video.current.srcObject = stream;
+  }, [stream]);
+
   const createConnection = () => {
     console.log('Create connection');
-    peer = new RTCPeerConnection();
-    peer.onicecandidate = (e) => {
-      const SDP = JSON.stringify(peer.localDescription);
-      console.log('New Ice Candidate!!!', JSON.stringify(peer.localDescription));
+    connection = new RTCPeerConnection();
+    connection.onicecandidate = (e) => {
+      const SDP = JSON.stringify(connection.localDescription);
+      console.log('New Ice Candidate!!!', JSON.stringify(connection.localDescription));
       setContent(SDP);
     }
-    peer.ondatachannel = (e) => {
+    connection.ondatachannel = (e) => {
       rdc = e.channel;
       rdc.onmessage = (e) => {
         const _message = message + "\n" + e.data;
@@ -35,7 +43,7 @@ function App() {
   const [ message, setMessage ] = useState('');
 
   const createChannel = () => {
-    dc = peer.createDataChannel('channel');
+    dc = connection.createDataChannel('channel');
     dc.onmessage = (e) => {
       const _message = message + "\n" + e.data;
       setMessage(_message);
@@ -44,20 +52,20 @@ function App() {
   }
 
   const createOffer = () => {
-    peer.createOffer().then((o) => { peer.setLocalDescription(o).then(() => {
+    connection.createOffer().then((o) => { connection.setLocalDescription(o).then(() => {
       console.log('created offer!!!');
     })});
   }
 
   const createAnswer = () => {
-    peer.createAnswer().then((a) => { peer.setLocalDescription(a).then(() => console.log('created answer!!')) });
+    connection.createAnswer().then((a) => { connection.setLocalDescription(a).then(() => console.log('created answer!!')) });
   }
 
   const setRemoteDescription = () => {
     if (!sdp) {
       return;
     }
-    peer.setRemoteDescription(JSON.parse(sdp)).then(() => console.log('set remote successfully!!!'));
+    connection.setRemoteDescription(JSON.parse(sdp)).then(() => console.log('set remote successfully!!!'));
   }
 
   const [ content, setContent ] = useState(null);
@@ -73,6 +81,10 @@ function App() {
 
   const setText = (e) => {
     text = e.target.value;
+  }
+
+  if (error) {
+    return <Button>Permission</Button>
   }
 
   return (
@@ -99,15 +111,10 @@ function App() {
                 {content}
               </Typography.Paragraph>
             </Card>
-            <Card
-              title="DATA-CHANNEL"
-            >
-              <Typography.Paragraph
-                type="success"
-              >
-                {message}
-              </Typography.Paragraph>
-            </Card>
+            <video
+              autoPlay
+              ref={video}
+            />
           </Space>
           <Button
             type="primary"
