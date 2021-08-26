@@ -19,7 +19,9 @@ function App() {
   }, []);
 
   useEffect(() => {
-    video.current.srcObject = stream;
+    if (stream) {
+      video.current.srcObject = stream;
+    }
   }, [stream]);
 
   const createConnection = () => {
@@ -112,6 +114,8 @@ function App() {
               </Typography.Paragraph>
             </Card>
             <video
+              width={200}
+              height={200}
               autoPlay
               ref={video}
             />
