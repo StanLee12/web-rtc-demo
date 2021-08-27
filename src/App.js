@@ -8,7 +8,10 @@ let sdp;
 let dc;
 let rdc;
 let text;
-let candidate;
+
+const log = (message, ...params) => {
+  console.log(message, params?.join());
+}
 
 function App() {
   const localVideo = useRef(null);
@@ -29,33 +32,36 @@ function App() {
   }, [stream]);
 
   const createConnection = () => {
-    console.log('Create connection');
+    log('Create connection');
     connection = new RTCPeerConnection({});
     connection.onicecandidate = (e) => {
       const _candidate = e.candidate;
-      console.log('New Ice Candidate!!!', JSON.stringify(e));
-      setCandidateContent(JSON.stringify(_candidate));
+      log('New Ice Candidate!!!', JSON.stringify(e));
+      if (_candidate) {
+        addCandidate(_candidate);
+        setCandidateContent(JSON.stringify(_candidate));
+      }
       setContent(JSON.stringify(connection.localDescription));
     }
     connection.ondatachannel = (e) => {
       rdc = e.channel;
       rdc.onmessage = (e) => {
         const { data } = e;
-        console.log('RDC received message', data);
+        log('RDC received message', data);
         const _message = message + "\n" + data;
         setMessage(_message);
       }
-      rdc.onopen = (e) => { console.log('RDC opened!!!') }
+      rdc.onopen = (e) => { log('RDC opened!!!') }
     };
     connection.oniceconnectionstatechange = (e) => {
-      console.log('ICE connection state change', JSON.stringify(e), connection.iceConnectionState);
+      log('ICE connection state change', JSON.stringify(e), connection.iceConnectionState);
     }
     connection.ontrack = (e) => {
-      console.log('on track!!!');
+      log('on track!!!');
       remoteVideo.current.srcObject = e.streams[0];
     }
     connection.onicecandidateerror = (e) => {
-      console.log("onicecandidateerror ==== ", JSON.stringify(e));
+      log("onicecandidateerror ==== ", JSON.stringify(e));
     }
   }
 
@@ -63,7 +69,7 @@ function App() {
     connection || createConnection();
     if (stream) {
       for (const track of stream.getTracks()) {
-        console.log('add track!');
+        log('add track!');
         connection.addTrack(track, stream);
       }
     }
@@ -71,47 +77,68 @@ function App() {
 
   const createChannel = () => {
     connection || createConnection();
-    console.log('Create data channel');
+    log('Create data channel');
     dc = connection.createDataChannel('channel');
     dc.onmessage = (e) => {
       const { data } = e;
-      console.log('DC received message', data);
+      log('DC received message', data);
       const _message = message + "\n" + data;
       setMessage(_message);
     };
-    dc.onopen = (e) => console.log('Connection opened!!!');
+    dc.onopen = (e) => log('Connection opened!!!');
   }
 
-  const createOffer = () => {
+  const createOffer = async () => {
       connection || createConnection();
-      connection.createOffer({
-        offerToReceiveAudio: 0,
-        offerToReceiveVideo: 1
-      }).then((o) => { return connection.setLocalDescription(o).then(() => {
-          console.log('created offer!!!');
-      })});
+      try {
+        log('Create OFFER!');
+        const offer = await connection.createOffer({
+          offerToReceiveVideo: 1,
+        });
+        log('Create OFFER sucessfully!!!');
+        await connection.setLocalDescription(offer);
+        log('Set SDP sucessfully!!!');
+      } catch (error) {
+        log(error);
+      }
+      // connection.createOffer({
+      //   offerToReceiveAudio: 0,
+      //   offerToReceiveVideo: 1
+      // }).then((o) => { return connection.setLocalDescription(o).then(() => {
+      //     log('created offer!!!');
+      // })});
     }
 
   const createAnswer = async () => {
     connection || createConnection();
-    connection.createAnswer().then((a) => { return connection.setLocalDescription(a).then(() => {
-      console.log('created answer!!')
-    }) });
+    try {
+      log('Create ANSWER!');
+      const answer = await connection.createAnswer();
+      log('Create ANSWER sucessfully!!!');
+      await connection.setLocalDescription(answer);
+      log('Set SDP Sucessfully!!!');
+    } catch (error) {
+      log(error);
+    }
+    // connection.createAnswer().then((a) => { return connection.setLocalDescription(a).then(() => {
+    //   log('created answer!!')
+    // }) });
   }
 
   const setRemoteDescription = () => {
     if (!sdp) {
       return;
     }
-    connection.setRemoteDescription(JSON.parse(sdp)).then(() => console.log('set remote successfully!!!'));
+    connection.setRemoteDescription(JSON.parse(sdp)).then(() => log('set remote successfully!!!'));
   }
 
-  const addCandidate = () => {
-    connection.addIceCandidate(candidate || {}).then(() => console.log('add candidate successfully!!!'));
-  }
-
-  const onInputCandidateChange = (e) => {
-    candidate = e.target.value;
+  const addCandidate = async (candidate) => {
+    try {
+      await connection.addIceCandidate(candidate);
+      log('Add candidate successfully!!!');
+    } catch (error) {
+      log(error);
+    }
   }
 
   const onSend = () => {
@@ -222,16 +249,6 @@ function App() {
               onChange={onInputSDPChange}
             ></Input.TextArea>
             <Button type="primary" onClick={setRemoteDescription}>Set SDP</Button>
-          </Space>
-          <Space
-            align="center"
-            direction="horizontal"
-            size="middle"
-          >
-            <Input.TextArea
-              onChange={onInputCandidateChange}
-            ></Input.TextArea>
-            <Button type="primary" onClick={addCandidate}>Set CANDIDATE</Button>
           </Space>
           <Space
             align="center"
