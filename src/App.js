@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Button, Space, Input, Card, Typography, } from 'antd';
+import { Button, Space, Input, Card, Typography, Result } from 'antd';
 import './App.css';
 import useUserMedia from './useUserMedia';
 
@@ -133,7 +133,12 @@ function App() {
   }
 
   if (error) {
-    return <Button>Permission</Button>
+    return (
+      <Result
+        status="warning"
+        title="No camera permission,Please check"
+      />
+    );
   }
 
   return (
