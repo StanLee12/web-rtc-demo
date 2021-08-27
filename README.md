@@ -1,3 +1,5 @@
-### yarn
+### run `cd web-rtc-demo`
 
-### yarn start
+### run `yarn`
+
+### run `yarn start`
