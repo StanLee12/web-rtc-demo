@@ -13,6 +13,14 @@ const log = (message, ...params) => {
   console.log(message, params?.join());
 }
 
+const configuration = {
+  iceServers: [{
+    "url": "stun:23.21.150.121"
+  }, {
+    "url": "stun:stun.l.google.com:19302"
+  }]
+};
+
 function App() {
   const localVideo = useRef(null);
   const remoteVideo = useRef(null);
@@ -33,13 +41,13 @@ function App() {
 
   const createConnection = () => {
     log('Create connection');
-    connection = new RTCPeerConnection({});
+    connection = new RTCPeerConnection(configuration);
     connection.onicecandidate = (e) => {
-      const _candidate = e.candidate;
-      log('New Ice Candidate!!!', JSON.stringify(e));
-      if (_candidate) {
-        addCandidate(_candidate);
-        setCandidateContent(JSON.stringify(_candidate));
+      log('New Ice Candidate!!!', JSON.stringify(e.candidate));
+      const { candidate } = e;
+      if (candidate) {
+        addCandidate(candidate);
+        setCandidateContent(JSON.stringify(candidate));
       }
       setContent(JSON.stringify(connection.localDescription));
     }
@@ -62,6 +70,9 @@ function App() {
     }
     connection.onicecandidateerror = (e) => {
       log("onicecandidateerror ==== ", JSON.stringify(e));
+    }
+    connection.onnegotiationneeded = (e) => {
+      log('onnegotiationneeded ====', JSON.stringify(e));
     }
   }
 
